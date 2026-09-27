@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHub 仓库体检中心 · Repo Checkup</title>
+  <meta name="description" content="输入公开 GitHub 仓库地址，一键生成可视化体检报告：热度、活跃度、社区、规范、维护五维评分 + AI 综合评估" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-icon">🩺</span>
+        <span class="brand-text">GitHub 仓库体检中心</span>
+        <span class="brand-en">Repo Checkup</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="btn-settings" class="btn btn-ghost" type="button">⚙️ AI 设置</button>
+        <a class="btn btn-ghost" href="https://github.com" target="_blank" rel="noreferrer">GitHub ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 搜索区 -->
+    <section class="card hero" id="search-card">
+      <h1>给你的 GitHub 仓库做一次「体检」</h1>
+      <p class="sub">输入任意公开仓库地址，即刻生成可视化健康报告 —— 五维评分、提交活跃、语言分布、贡献者画像，并可选 AI 综合评估。</p>
+      <form id="search-form" class="search-row" autocomplete="off">
+        <input id="repo-input" type="text" placeholder="例如 https://github.com/facebook/react 或 facebook/react" spellcheck="false" />
+        <button type="submit" class="btn btn-primary" id="btn-check">🩺 开始体检</button>
+      </form>
+      <div class="examples">
+        <span class="examples-label">试一试：</span>
+        <button class="chip" type="button" data-repo="facebook/react">facebook/react</button>
+        <button class="chip" type="button" data-repo="vuejs/core">vuejs/core</button>
+        <button class="chip" type="button" data-repo="microsoft/vscode">microsoft/vscode</button>
+        <button class="chip" type="button" data-repo="langchain-ai/langchain">langchain-ai/langchain</button>
+      </div>
+      <div class="history hidden" id="history"></div>
+    </section>
+
+    <!-- 加载中 -->
+    <section class="card loading-card hidden" id="loading">
+      <div class="stethoscope">🩺</div>
+      <div class="loading-text" id="loading-text">正在连接 GitHub…</div>
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </section>
+
+    <!-- 错误 -->
+    <section class="card error-card hidden" id="error">
+      <div class="error-icon" id="error-icon">🫥</div>
+      <h2 id="error-title">出错了</h2>
+      <p id="error-message"></p>
+      <p class="error-hint" id="error-hint"></p>
+      <div id="error-extra"></div>
+    </section>
+
+    <!-- 体检报告 -->
+    <section class="hidden" id="report">
+      <div class="card repo-header">
+        <img id="r-avatar" class="repo-avatar" alt="owner avatar" />
+        <div class="repo-meta">
+          <h2 id="r-name"></h2>
+          <p id="r-desc" class="repo-desc"></p>
+          <div id="r-topics" class="topics"></div>
+          <div id="r-facts" class="facts"></div>
+        </div>
+        <div class="gauge-wrap">
+          <div id="chart-gauge" class="chart chart-gauge"></div>
+          <div id="r-grade" class="grade-badge"></div>
+        </div>
+      </div>
+
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <div class="charts-grid">
+        <div class="card chart-card"><h3>五维健康雷达</h3><div id="chart-radar" class="chart"></div></div>
+        <div class="card chart-card"><h3>近 12 周提交活跃</h3><div id="chart-activity" class="chart"></div></div>
+        <div class="card chart-card">
+          <h3>编程语言分布</h3>
+          <div id="chart-langs" class="chart"></div>
+          <div class="chart-empty hidden" id="langs-empty">暂无语言统计数据</div>
+        </div>
+        <div class="card chart-card">
+          <h3>Top 贡献者（累计提交）</h3>
+          <div id="chart-contribs" class="chart"></div>
+          <div class="chart-empty hidden" id="contribs-empty">暂无贡献者数据</div>
+        </div>
+      </div>
+
+      <div class="card checks-card">
+        <h3>🧾 体检明细（10 项）</h3>
+        <div class="table-wrap">
+          <table class="checks-table">
+            <thead>
+              <tr><th style="width:150px">体检项</th><th style="width:92px">状态</th><th>说明</th><th style="width:290px">建议</th></tr>
+            </thead>
+            <tbody id="checks-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card ai-card">
+        <div class="ai-head">
+          <h3>🤖 AI 深度评估</h3>
+          <button id="btn-ai" class="btn btn-primary" type="button">生成 AI 评估</button>
+        </div>
+        <p class="ai-hint" id="ai-hint">本地评分已就绪。在右上角「AI 设置」中配置任意 OpenAI 兼容接口（OpenAI / DeepSeek / Kimi / 通义千问…）后，可让大模型结合仓库体检数据给出总评、亮点、风险与改进建议。</p>
+        <div id="ai-error" class="ai-error hidden"></div>
+        <div id="ai-result" class="hidden">
+          <div class="ai-top"><span class="ai-grade" id="ai-grade"></span></div>
+          <div id="ai-scores" class="ai-scores"></div>
+          <p id="ai-summary" class="ai-summary"></p>
+          <div class="ai-lists">
+            <div><h4>✨ 亮点</h4><ul id="ai-highlights"></ul></div>
+            <div><h4>⚠️ 风险</h4><ul id="ai-risks"></ul></div>
+            <div><h4>💡 建议</h4><ul id="ai-suggestions"></ul></div>
+          </div>
+          <p class="ai-model" id="ai-model"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>数据来源：GitHub REST API · 评分由本地启发式算法与（可选）AI 生成，仅供参考 · 图表基于 ECharts（本地内置）</p>
+  </footer>
+
+  <!-- AI 设置弹窗 -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-mask" id="modal-mask"></div>
+    <div class="modal-box">
+      <h3>⚙️ AI 评估设置</h3>
+      <p class="modal-sub">配置任意 <b>OpenAI 兼容</b>对话接口。API Key 仅保存在浏览器本地，只会发送到你本机运行的服务端。</p>
+      <label class="cfg-field">API Base URL<input id="cfg-base" placeholder="https://api.openai.com/v1" spellcheck="false" /></label>
+      <label class="cfg-field">API Key<input id="cfg-key" type="password" placeholder="sk-..." spellcheck="false" /></label>
+      <label class="cfg-field">模型名称<input id="cfg-model" placeholder="gpt-4o-mini" spellcheck="false" /></label>
+      <p class="modal-note">页面留空时，将使用服务端环境变量 OPENAI_API_KEY / OPENAI_BASE_URL / AI_MODEL（见 README）。</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cfg-clear" type="button">清除本地配置</button>
+        <button class="btn btn-primary" id="cfg-save" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/vendor/echarts.min.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

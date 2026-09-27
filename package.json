@@ -1,0 +1,19 @@
+{
+  "name": "github-repo-checkup",
+  "version": "1.0.0",
+  "description": "GitHub 仓库体检中心 —— 输入公开仓库地址，生成可视化健康体检报告，支持 AI 综合评分（零依赖，Node >= 18）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "github",
+    "repo-analysis",
+    "echarts",
+    "ai"
+  ],
+  "license": "MIT"
+}

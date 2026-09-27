@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax check
+        run: |
+          node --check server.js
+          node --check lib/score.js
+          node --check lib/ai.js
+
+      - name: Unit tests
+        run: node --test tests/score.test.js
+
+      - name: Smoke test (boot server & check health)
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          sleep 2
+          curl -sf http://127.0.0.1:3000/api/health | grep -q '"ok":true'
+          kill $SERVER_PID
